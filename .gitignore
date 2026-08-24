@@ -1,0 +1,13 @@
+bin/
+.DS_Store
+
+# Go
+*.exe
+*.test
+*.out
+vendor/
+
+# Swift
+helper/.build/
+helper/.swiftpm/
+helper/*.xcodeproj
