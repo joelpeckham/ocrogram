@@ -20,7 +20,7 @@ ocrogram start
 
 `ocrogram start` and `ocrogram stop` manage the LaunchAgent.
 
-The formula in this repo ([Formula/ocrogram.rb](Formula/ocrogram.rb)) is the draft. Tagged releases install from source via the [joelpeckham/homebrew-ocrogram](https://github.com/joelpeckham/homebrew-ocrogram) tap. Until a tag exists, `brew install --HEAD` from that tap builds `main`.
+Tagged releases install from source via the [joelpeckham/homebrew-ocrogram](https://github.com/joelpeckham/homebrew-ocrogram) tap. Until a tag exists, `brew install --HEAD` from that tap builds `main`.
 
 ## How it works
 
@@ -67,4 +67,4 @@ Custom-named screenshots are still picked up once Spotlight sets `kMDItemIsScree
 
 1. Tag `vX.Y.Z` and push. GitHub Actions builds, tests, and opens a Release.
 2. `sha256` the source tarball at `https://github.com/joelpeckham/ocrogram/archive/refs/tags/vX.Y.Z.tar.gz`.
-3. Set `url` and `sha256` in the tap formula (and in `Formula/ocrogram.rb` here).
+3. Set `url` and `sha256` in the tap formula.
