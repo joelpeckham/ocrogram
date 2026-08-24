@@ -13,15 +13,19 @@ You should not open an app, crop a region into a dedicated OCR window, or rememb
 ## Install
 
 ```bash
-brew install --HEAD joelpeckham/ocrogram/ocrogram
+brew install joelpeckham/ocrogram/ocrogram
 ocrogram start
 ```
 
-The fully qualified name taps [joelpeckham/homebrew-ocrogram](https://github.com/joelpeckham/homebrew-ocrogram) and trusts this formula (Homebrew 6 requires that for third-party taps). `--HEAD` builds `main`. After a tagged release, drop `--HEAD`.
+That taps [joelpeckham/homebrew-ocrogram](https://github.com/joelpeckham/homebrew-ocrogram) and trusts this formula (Homebrew 6 requires that for third-party taps). `ocrogram start` installs the login item; `ocrogram stop` removes it.
 
-`ocrogram start` and `ocrogram stop` manage the LaunchAgent.
+Homebrew compiles from source, so you need Go and a Swift toolchain it accepts. If it says Xcode is outdated, update Xcode (or the Command Line Tools) to the version for your macOS, or remove an older `/Applications/Xcode.app` so Homebrew can use the CLT.
 
-Homebrew compiles from source, so it needs Go and a Swift toolchain it accepts. If it says Xcode is outdated, update Xcode (or the Command Line Tools) to the version for your macOS, or remove an older `/Applications/Xcode.app` so Homebrew can use the CLT.
+To build the latest `main` instead of the last release:
+
+```bash
+brew install --HEAD joelpeckham/ocrogram/ocrogram
+```
 
 ## How it works
 
