@@ -47,11 +47,6 @@ func Run() error {
 		return fmt.Errorf("daemon: helper: %w", err)
 	}
 
-	seen, err := screenshot.Snapshot(dir)
-	if err != nil {
-		return fmt.Errorf("daemon: snapshot: %w", err)
-	}
-
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return fmt.Errorf("daemon: watcher: %w", err)
@@ -61,14 +56,20 @@ func Run() error {
 		return fmt.Errorf("daemon: watch: %w", err)
 	}
 
+	seen, err := screenshot.Snapshot(dir)
+	if err != nil {
+		return fmt.Errorf("daemon: snapshot: %w", err)
+	}
+
 	log.Printf("watching %s", dir)
 
 	settler := screenshot.NewSettler(400 * time.Millisecond)
 	defer settler.Stop()
 
 	var helperMu sync.Mutex
-	proc := newProcessor(processorConfig{
+	proc := &processor{
 		seen:     seen,
+		busy:     make(map[string]struct{}),
 		maxTries: unknownRetryTries,
 		classify: screenshot.Classify,
 		ocr: func(path string) {
@@ -77,7 +78,7 @@ func Run() error {
 			runHelper(helper, path)
 		},
 		sleep: time.Sleep,
-	})
+	}
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -115,14 +116,6 @@ func Run() error {
 	}
 }
 
-type processorConfig struct {
-	seen     map[string]struct{}
-	maxTries int
-	classify func(string) screenshot.Kind
-	ocr      func(string)
-	sleep    func(time.Duration)
-}
-
 type processor struct {
 	mu       sync.Mutex
 	seen     map[string]struct{}
@@ -131,17 +124,6 @@ type processor struct {
 	classify func(string) screenshot.Kind
 	ocr      func(string)
 	sleep    func(time.Duration)
-}
-
-func newProcessor(cfg processorConfig) *processor {
-	return &processor{
-		seen:     cfg.seen,
-		busy:     make(map[string]struct{}),
-		maxTries: cfg.maxTries,
-		classify: cfg.classify,
-		ocr:      cfg.ocr,
-		sleep:    cfg.sleep,
-	}
 }
 
 func (p *processor) known(path string) bool {

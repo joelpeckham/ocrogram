@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const Label = "com.joelpeckham.ocrogram"
+const label = "com.joelpeckham.ocrogram"
 
 const plistName = "com.joelpeckham.ocrogram.plist"
 
@@ -26,25 +26,25 @@ func Start() error {
 	if err != nil {
 		return fmt.Errorf("service: home: %w", err)
 	}
-	plist := plistPath(home)
+	plistFile := plistPath(home)
 	logFile := logPath(home)
 
-	if err := os.MkdirAll(filepath.Dir(plist), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(plistFile), 0o755); err != nil {
 		return fmt.Errorf("service: mkdir agents: %w", err)
 	}
 	if err := os.MkdirAll(filepath.Dir(logFile), 0o755); err != nil {
 		return fmt.Errorf("service: mkdir logs: %w", err)
 	}
 
-	body := Plist(exe, logFile)
-	if err := os.WriteFile(plist, []byte(body), 0o644); err != nil {
+	body := plist(exe, logFile)
+	if err := os.WriteFile(plistFile, []byte(body), 0o644); err != nil {
 		return fmt.Errorf("service: write plist: %w", err)
 	}
 
 	if err := bootout(); err != nil {
 		return fmt.Errorf("service: bootout: %w", err)
 	}
-	if err := bootstrap(plist); err != nil {
+	if err := bootstrap(plistFile); err != nil {
 		return fmt.Errorf("service: bootstrap: %w", err)
 	}
 	return nil
@@ -65,8 +65,7 @@ func Stop() error {
 	return nil
 }
 
-// Plist renders a LaunchAgent property list for exe, logging to logFile.
-func Plist(exe, logFile string) string {
+func plist(exe, logFile string) string {
 	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -91,7 +90,7 @@ func Plist(exe, logFile string) string {
 	<string>%s</string>
 </dict>
 </plist>
-`, Label, xmlEscape(exe), xmlEscape(logFile), xmlEscape(logFile))
+`, label, xmlEscape(exe), xmlEscape(logFile), xmlEscape(logFile))
 }
 
 func plistPath(home string) string {
@@ -107,7 +106,7 @@ func domain() string {
 }
 
 func target() string {
-	return domain() + "/" + Label
+	return domain() + "/" + label
 }
 
 func bootstrap(plist string) error {

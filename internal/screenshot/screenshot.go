@@ -89,14 +89,10 @@ func lookupScreenCaptureMetadata(path string) Kind {
 	ctx, cancel := context.WithTimeout(context.Background(), metaTimeout)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, "mdls", "-raw", "-name", "kMDItemIsScreenCapture", path).Output()
-	return parseScreenCaptureMetadata(string(out), err)
-}
-
-func parseScreenCaptureMetadata(out string, err error) Kind {
 	if err != nil {
 		return KindUnknown
 	}
-	switch strings.TrimSpace(out) {
+	switch strings.TrimSpace(string(out)) {
 	case "1":
 		return KindScreenshot
 	case "0":
@@ -140,9 +136,9 @@ func Snapshot(dir string) (map[string]struct{}, error) {
 	return out, nil
 }
 
-// Settler calls a function after path has been quiet for Delay.
+// Settler calls a function after path has been quiet for delay.
 type Settler struct {
-	Delay time.Duration
+	delay time.Duration
 
 	mu      sync.Mutex
 	pending map[string]*time.Timer
@@ -151,7 +147,7 @@ type Settler struct {
 // NewSettler returns a settler that fires after delay of quiet.
 func NewSettler(delay time.Duration) *Settler {
 	return &Settler{
-		Delay:   delay,
+		delay:   delay,
 		pending: make(map[string]*time.Timer),
 	}
 }
@@ -164,7 +160,7 @@ func (s *Settler) Touch(path string, fn func(string)) {
 		t.Stop()
 	}
 	var timer *time.Timer
-	timer = time.AfterFunc(s.Delay, func() {
+	timer = time.AfterFunc(s.delay, func() {
 		s.mu.Lock()
 		current, ok := s.pending[path]
 		if !ok || current != timer {

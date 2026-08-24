@@ -9,7 +9,7 @@ all: go helper
 
 go:
 	mkdir -p $(BIN_DIR)
-	go build -ldflags "-X main.version=$(VERSION)" -o $(GO_BIN) ./cmd/ocrogram
+	go build -ldflags "-s -w -X main.version=$(VERSION)" -o $(GO_BIN) ./cmd/ocrogram
 
 helper:
 	mkdir -p $(BIN_DIR)

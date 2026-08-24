@@ -5,7 +5,6 @@ package daemon
 import (
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -16,8 +15,7 @@ func TestHelperRecognizesHello(t *testing.T) {
 		t.Skip("ocrogram-helper not built; run make helper")
 	}
 
-	image := filepath.Join(repoRoot(t), "internal", "daemon", "testdata", "hello.png")
-	cmd := exec.Command(helper, image)
+	cmd := exec.Command(helper, "testdata/hello.png")
 	out, err := cmd.Output()
 	if err != nil {
 		t.Fatalf("helper: %v", err)
@@ -29,47 +27,11 @@ func TestHelperRecognizesHello(t *testing.T) {
 }
 
 func lookupHelper() (string, bool) {
-	root := findGoMod()
-	if root == "" {
-		return "", false
-	}
-	for _, rel := range []string{
-		filepath.Join("bin", "ocrogram-helper"),
-		filepath.Join("helper", ".build", "release", "ocrogram-helper"),
-	} {
-		path := filepath.Join(root, rel)
-		if info, err := os.Stat(path); err == nil && !info.IsDir() {
-			return path, true
-		}
+	if info, err := os.Stat("../../bin/ocrogram-helper"); err == nil && !info.IsDir() {
+		return "../../bin/ocrogram-helper", true
 	}
 	if path, err := exec.LookPath("ocrogram-helper"); err == nil {
 		return path, true
 	}
 	return "", false
-}
-
-func repoRoot(t *testing.T) string {
-	t.Helper()
-	root := findGoMod()
-	if root == "" {
-		t.Fatal("go.mod not found")
-	}
-	return root
-}
-
-func findGoMod() string {
-	dir, err := os.Getwd()
-	if err != nil {
-		return ""
-	}
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return ""
-		}
-		dir = parent
-	}
 }

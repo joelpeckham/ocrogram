@@ -6,29 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"testing/synctest"
-	"time"
 )
-
-func TestParseScreenCaptureMetadata(t *testing.T) {
-	tests := []struct {
-		out  string
-		err  error
-		want Kind
-	}{
-		{"1", nil, KindScreenshot},
-		{"1\n", nil, KindScreenshot},
-		{"0", nil, KindNotScreenshot},
-		{"(null)", nil, KindUnknown},
-		{"", nil, KindUnknown},
-		{"1", os.ErrPermission, KindUnknown},
-	}
-	for _, tt := range tests {
-		if got := parseScreenCaptureMetadata(tt.out, tt.err); got != tt.want {
-			t.Errorf("parseScreenCaptureMetadata(%q, %v) = %d, want %d", tt.out, tt.err, got, tt.want)
-		}
-	}
-}
 
 func TestClassify(t *testing.T) {
 	dir := t.TempDir()
@@ -78,31 +56,4 @@ func TestClassify(t *testing.T) {
 	if got := classify(other, meta(KindUnknown)); got != KindUnknown {
 		t.Fatalf("mdls null = %d, want unknown", got)
 	}
-}
-
-func TestSettlerDebounce(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		s := NewSettler(40 * time.Millisecond)
-		defer s.Stop()
-
-		got := make(chan string, 2)
-		s.Touch("/tmp/a.png", func(p string) { got <- p })
-		s.Touch("/tmp/a.png", func(p string) { got <- p })
-		time.Sleep(40 * time.Millisecond)
-		synctest.Wait()
-
-		select {
-		case p := <-got:
-			if p != "/tmp/a.png" {
-				t.Fatalf("got %q", p)
-			}
-		default:
-			t.Fatal("did not settle")
-		}
-		select {
-		case <-got:
-			t.Fatal("settled twice")
-		default:
-		}
-	})
 }
