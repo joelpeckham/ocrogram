@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
-# Stub Homebrew formula. Fill in url/sha256 once there is a tagged release.
+# Draft formula. Copy into github.com/joelpeckham/homebrew-ocrogram
+# and fill url/sha256 when tagging a release.
+
 class Ocrogram < Formula
   desc "Extract text from macOS screenshots into the clipboard"
   homepage "https://github.com/joelpeckham/ocrogram"
@@ -14,19 +16,20 @@ class Ocrogram < Formula
   uses_from_macos "swift" => :build
 
   def install
-    system "make"
+    system "make", "VERSION=#{version}"
     bin.install "bin/ocrogram"
     bin.install "bin/ocrogram-helper"
   end
 
-  service do
-    run [opt_bin/"ocrogram", "daemon"]
-    keep_alive true
-    require_root false
+  def caveats
+    <<~EOS
+      Run `ocrogram` once to confirm the screenshot folder and enable the login item.
+      `ocrogram start` and `ocrogram stop` manage the LaunchAgent.
+    EOS
   end
 
   test do
-    assert_match "not implemented yet", shell_output("#{bin}/ocrogram daemon")
-    assert_match "not implemented yet", shell_output("#{bin}/ocrogram-helper")
+    assert_match "ocrogram", shell_output("#{bin}/ocrogram --version")
+    assert_match "usage: ocrogram-helper", shell_output("#{bin}/ocrogram-helper 2>&1", 2)
   end
 end

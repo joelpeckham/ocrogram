@@ -10,12 +10,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// version is set via -ldflags at build time.
+var version = "dev"
+
 func main() {
 	root := &cobra.Command{
-		Use:   "ocrogram",
-		Short: "Extract text from macOS screenshots into the clipboard",
-		Long:  "ocrogram watches for macOS screenshots, extracts text with Apple Vision, and copies it to the clipboard.",
-		Args:  cobra.NoArgs,
+		Use:           "ocrogram",
+		Short:         "Extract text from macOS screenshots into the clipboard",
+		Long:          "ocrogram watches for macOS screenshots, extracts text with Apple Vision, and copies it to the clipboard.",
+		Version:       version,
+		Args:          cobra.NoArgs,
+		SilenceUsage:  true,
+		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return tui.Run()
 		},

@@ -1,6 +1,6 @@
 # ocrogram
 
-A set-and-forget Mac background tool: install via Homebrew, run the TUI once, add it to login items, then ignore it. Whenever you take a normal macOS screenshot, ocrogram extracts high-quality text and puts it on the clipboard so Cmd+V pastes that text anywhere.
+A set-and-forget Mac background tool. Install it, run the TUI once, leave it on as a login item. After that, a normal macOS screenshot puts the text on the clipboard. Cmd+V pastes it anywhere.
 
 The name is a portmanteau of OCR and program — and *gram*, something written down.
 
@@ -8,38 +8,40 @@ The name is a portmanteau of OCR and program — and *gram*, something written d
 
 Take a default Mac screenshot. Paste the text. That is the whole workflow.
 
-You should not open an app, crop a region into a dedicated OCR window, or remember a hotkey beyond the screenshot shortcut you already use. ocrogram runs in the background, notices the screenshot, does the extraction, and leaves the text waiting on the clipboard.
+You should not open an app, crop a region into a dedicated OCR window, or remember a hotkey beyond the screenshot shortcut you already use.
 
-## Intended design
+## Install
 
-Nothing below is implemented yet. This repo is a stack scaffold.
-
-- **Watch** the user’s screenshot folder — Desktop, `~/Pictures/Screenshots`, or whatever `defaults read com.apple.screencapture location` points at
-- **OCR** with Apple Vision (best quality available on Mac)
-- **Write** recognized text to the clipboard
-- **Persist** as a per-user LaunchAgent so it starts at login
-
-```
+```bash
+brew tap joelpeckham/ocrogram
 brew install ocrogram
-ocrogram          # TUI: confirm folder, enable login item, start daemon
-# then forget about it
+ocrogram
 ```
 
-Later, launchd runs `ocrogram daemon`, which calls `ocrogram-helper` for Vision and clipboard work.
+The TUI confirms the screenshot folder and can enable the login item. `ocrogram start` and `ocrogram stop` do the same without the TUI.
 
-## Stack
+The formula in this repo ([Formula/ocrogram.rb](Formula/ocrogram.rb)) is the draft. Tagged releases install from source via the [joelpeckham/homebrew-ocrogram](https://github.com/joelpeckham/homebrew-ocrogram) tap. Until a tag exists, `brew install --HEAD` from that tap builds `main`.
 
-- **Go** — CLI (`cobra`), setup TUI (`bubbletea` + `lipgloss`), daemon and LaunchAgent install
-- **Swift** — `ocrogram-helper` for Vision OCR, clipboard, and screenshot-file APIs
-- **Homebrew** — install path; formula in `Formula/ocrogram.rb` is a stub until there is a release
-- **launchd** — login item; template in `contrib/com.joelpeckham.ocrogram.plist`
+## How it works
 
-## Commands (wired, not implemented)
+ocrogram watches the folder from `defaults read com.apple.screencapture location`, or `~/Desktop` if that key is unset. New screenshot images are sent to `ocrogram-helper`, which runs Apple Vision and writes the text to the clipboard.
+
+`ocrogram start` generates a LaunchAgent at `~/Library/LaunchAgents/com.joelpeckham.ocrogram.plist` that runs `ocrogram daemon` at login. Settings live in `~/.config/ocrogram/config.toml`. Logs go to `~/Library/Logs/ocrogram.log`.
+
+If the daemon cannot read Desktop, point screenshots at a folder you own and set that path in the TUI:
+
+```bash
+mkdir -p ~/Pictures/Screenshots
+defaults write com.apple.screencapture location ~/Pictures/Screenshots
+killall SystemUIServer
+```
+
+## Commands
 
 | Command | Role |
 | --- | --- |
 | `ocrogram` | Setup TUI |
-| `ocrogram daemon` | Background watcher (what launchd will run) |
+| `ocrogram daemon` | Background watcher (what launchd runs) |
 | `ocrogram start` | Install and start the login item |
 | `ocrogram stop` | Stop and remove the login item |
 
@@ -51,10 +53,15 @@ Requires Go 1.27+ and Swift 6 (Xcode / Command Line Tools).
 make
 ./bin/ocrogram --help
 ./bin/ocrogram-helper
+make test
 ```
 
 `make go` builds only the CLI. `make helper` builds only the Swift helper. `make clean` removes `bin/` and Swift build products.
 
-## Status
+The helper contract is `ocrogram-helper <image-path>`: print text, copy it, exit 0 on success, 1 if the image had no text, 2 on usage or IO errors.
 
-Scaffold only. No screenshot watching, no Vision OCR, no clipboard writes, no real plist install. No Homebrew tap and no GitHub release yet.
+## Release
+
+1. Tag `vX.Y.Z` and push. GitHub Actions builds, tests, and opens a Release.
+2. `sha256` the source tarball at `https://github.com/joelpeckham/ocrogram/archive/refs/tags/vX.Y.Z.tar.gz`.
+3. Set `url` and `sha256` in the tap formula (and in `Formula/ocrogram.rb` here).
