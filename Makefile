@@ -13,7 +13,7 @@ go:
 
 helper:
 	mkdir -p $(BIN_DIR)
-	swift build --package-path helper -c release
+	swift build --package-path helper -c release --disable-sandbox
 	cp helper/.build/release/ocrogram-helper $(HELPER_BIN)
 
 test: all
