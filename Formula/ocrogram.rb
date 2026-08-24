@@ -13,7 +13,6 @@ class Ocrogram < Formula
 
   depends_on :macos
   depends_on "go" => :build
-  uses_from_macos "swift" => :build
 
   def install
     system "make", "VERSION=#{version}"

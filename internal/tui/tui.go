@@ -117,9 +117,10 @@ func (m model) updateEditing(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if path == "" || path == m.cfg.ScreenshotDir {
 				return m, nil
 			}
-			m.cfg.ScreenshotDir = path
 			m.note = "saving…"
-			return m, saveCmd(m.cfg, m.running)
+			cfg := m.cfg
+			cfg.ScreenshotDir = path
+			return m, saveCmd(cfg, m.running)
 		}
 	}
 

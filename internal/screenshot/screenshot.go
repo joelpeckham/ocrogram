@@ -3,6 +3,7 @@
 package screenshot
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -81,7 +82,7 @@ func isImage(path string) bool {
 func matchesName(path string) bool {
 	base := strings.ToLower(filepath.Base(path))
 	for _, prefix := range namePrefixes {
-		if strings.HasPrefix(base, strings.ToLower(prefix)) {
+		if strings.HasPrefix(base, prefix) {
 			return true
 		}
 	}
@@ -97,8 +98,12 @@ func isEmpty(path string) bool {
 	return err != nil || info.Size() == 0
 }
 
+const metaTimeout = 5 * time.Second
+
 func lookupScreenCaptureMetadata(path string) Kind {
-	out, err := exec.Command("mdls", "-raw", "-name", "kMDItemIsScreenCapture", path).Output()
+	ctx, cancel := context.WithTimeout(context.Background(), metaTimeout)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "mdls", "-raw", "-name", "kMDItemIsScreenCapture", path).Output()
 	return parseScreenCaptureMetadata(string(out), err)
 }
 
@@ -132,11 +137,6 @@ func classify(path string, meta func(string) Kind) Kind {
 // Classify reports whether path is a screenshot, not one, still writing, or unknown.
 func Classify(path string) Kind {
 	return classify(path, lookupScreenCaptureMetadata)
-}
-
-// IsScreenshot reports whether path looks like a finished screenshot image.
-func IsScreenshot(path string) bool {
-	return Classify(path) == KindScreenshot
 }
 
 // Snapshot lists non-directory entries in dir, keyed by full path.

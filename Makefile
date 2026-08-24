@@ -16,7 +16,7 @@ helper:
 	swift build --package-path helper -c release
 	cp helper/.build/release/ocrogram-helper $(HELPER_BIN)
 
-test:
+test: all
 	go test -race ./...
 
 clean:

@@ -3,7 +3,10 @@
 package daemon
 
 import (
+	"errors"
+	"strings"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -122,6 +125,27 @@ func TestProcessorUnknownBecomesNotScreenshot(t *testing.T) {
 	}
 }
 
+func TestProcessorForgetAllowsReprocess(t *testing.T) {
+	var ocr atomic.Int32
+	p := newProcessor(processorConfig{
+		classify: func(string) screenshot.Kind { return screenshot.KindScreenshot },
+		ocr:      func(string) { ocr.Add(1) },
+		sleep:    func(time.Duration) {},
+	})
+	p.settled("/tmp/Screenshot.png")
+	if ocr.Load() != 1 {
+		t.Fatalf("ocr calls = %d, want 1", ocr.Load())
+	}
+	p.forget("/tmp/Screenshot.png")
+	if p.known("/tmp/Screenshot.png") {
+		t.Fatal("forgotten path should not be known")
+	}
+	p.settled("/tmp/Screenshot.png")
+	if ocr.Load() != 2 {
+		t.Fatalf("ocr calls = %d, want 2", ocr.Load())
+	}
+}
+
 func TestProcessorBusySkipsDuplicateSettle(t *testing.T) {
 	inClassify := make(chan struct{})
 	release := make(chan struct{})
@@ -148,5 +172,19 @@ func TestProcessorBusySkipsDuplicateSettle(t *testing.T) {
 	<-done
 	if classifyCalls.Load() != 1 {
 		t.Fatalf("classify calls = %d, want 1", classifyCalls.Load())
+	}
+}
+
+func TestFlockError(t *testing.T) {
+	err := flockError(syscall.EWOULDBLOCK)
+	if !strings.Contains(err.Error(), "already running") {
+		t.Fatalf("EWOULDBLOCK = %v, want already running", err)
+	}
+	other := flockError(syscall.EIO)
+	if strings.Contains(other.Error(), "already running") {
+		t.Fatal("EIO should not be treated as already running")
+	}
+	if !errors.Is(other, syscall.EIO) {
+		t.Fatalf("EIO should be wrapped, got %v", other)
 	}
 }

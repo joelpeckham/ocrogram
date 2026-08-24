@@ -43,13 +43,13 @@ func TestIsDotfile(t *testing.T) {
 	}
 }
 
-func TestIsScreenshotNameAndEmpty(t *testing.T) {
+func TestClassifyNameAndEmpty(t *testing.T) {
 	dir := t.TempDir()
 	empty := filepath.Join(dir, "Screenshot empty.png")
 	if err := os.WriteFile(empty, nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if IsScreenshot(empty) {
+	if Classify(empty) != KindIncomplete {
 		t.Fatal("empty file should not be a screenshot")
 	}
 
@@ -57,7 +57,7 @@ func TestIsScreenshotNameAndEmpty(t *testing.T) {
 	if err := os.WriteFile(ok, []byte("not-a-real-png"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if !IsScreenshot(ok) {
+	if Classify(ok) != KindScreenshot {
 		t.Fatal("named screenshot with size should match")
 	}
 
@@ -65,7 +65,7 @@ func TestIsScreenshotNameAndEmpty(t *testing.T) {
 	if err := os.WriteFile(other, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if IsScreenshot(other) {
+	if Classify(other) == KindScreenshot {
 		t.Fatal("unrelated png without metadata should not match")
 	}
 }
@@ -162,27 +162,30 @@ func TestSnapshot(t *testing.T) {
 }
 
 func TestSettlerDebounce(t *testing.T) {
-	s := NewSettler(40 * time.Millisecond)
-	defer s.Stop()
+	synctest.Test(t, func(t *testing.T) {
+		s := NewSettler(40 * time.Millisecond)
+		defer s.Stop()
 
-	got := make(chan string, 2)
-	s.Touch("/tmp/a.png", func(p string) { got <- p })
-	s.Touch("/tmp/a.png", func(p string) { got <- p })
+		got := make(chan string, 2)
+		s.Touch("/tmp/a.png", func(p string) { got <- p })
+		s.Touch("/tmp/a.png", func(p string) { got <- p })
+		time.Sleep(40 * time.Millisecond)
+		synctest.Wait()
 
-	select {
-	case p := <-got:
-		if p != "/tmp/a.png" {
-			t.Fatalf("got %q", p)
+		select {
+		case p := <-got:
+			if p != "/tmp/a.png" {
+				t.Fatalf("got %q", p)
+			}
+		default:
+			t.Fatal("did not settle")
 		}
-	case <-time.After(300 * time.Millisecond):
-		t.Fatal("timed out waiting for settle")
-	}
-
-	select {
-	case <-got:
-		t.Fatal("settled twice")
-	case <-time.After(80 * time.Millisecond):
-	}
+		select {
+		case <-got:
+			t.Fatal("settled twice")
+		default:
+		}
+	})
 }
 
 func TestSettlerStaleTimerIgnored(t *testing.T) {

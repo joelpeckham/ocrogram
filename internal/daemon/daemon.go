@@ -63,8 +63,6 @@ func Run() error {
 		return fmt.Errorf("daemon: watch: %w", err)
 	}
 
-	log.SetOutput(os.Stderr)
-	log.SetFlags(log.LstdFlags)
 	log.Printf("watching %s", dir)
 
 	settler := screenshot.NewSettler(400 * time.Millisecond)
@@ -87,23 +85,30 @@ func Run() error {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	defer signal.Stop(sigs)
 
+	watchDir := filepath.Clean(dir)
 	for {
 		select {
 		case <-sigs:
 			return nil
 		case err, ok := <-watcher.Errors:
 			if !ok {
-				return nil
+				return fmt.Errorf("daemon: watcher errors closed")
 			}
 			log.Printf("watch error: %v", err)
 		case ev, ok := <-watcher.Events:
 			if !ok {
-				return nil
-			}
-			if !ev.Has(fsnotify.Create) && !ev.Has(fsnotify.Write) && !ev.Has(fsnotify.Rename) {
-				continue
+				return fmt.Errorf("daemon: watcher closed")
 			}
 			path := ev.Name
+			if ev.Has(fsnotify.Remove) || ev.Has(fsnotify.Rename) {
+				if filepath.Clean(path) == watchDir {
+					return fmt.Errorf("daemon: screenshot dir gone: %s", dir)
+				}
+				proc.forget(path)
+			}
+			if !ev.Has(fsnotify.Create) && !ev.Has(fsnotify.Write) {
+				continue
+			}
 			if proc.known(path) {
 				continue
 			}
@@ -160,6 +165,12 @@ func (p *processor) known(path string) bool {
 func (p *processor) mark(path string) {
 	p.mu.Lock()
 	p.seen[path] = struct{}{}
+	p.mu.Unlock()
+}
+
+func (p *processor) forget(path string) {
+	p.mu.Lock()
+	delete(p.seen, path)
 	p.mu.Unlock()
 }
 
@@ -247,9 +258,8 @@ func runHelper(helper, image string) {
 		log.Printf("helper %s: %v", filepath.Base(image), err)
 		return
 	}
-	if n := len(strings.TrimSpace(string(out))); n > 0 {
-		log.Printf("copied %d chars from %s", n, filepath.Base(image))
-	}
+	n := len(strings.TrimSpace(string(out)))
+	log.Printf("copied %d chars from %s", n, filepath.Base(image))
 }
 
 func acquireInstanceLock() (*os.File, error) {
@@ -268,7 +278,14 @@ func acquireInstanceLock() (*os.File, error) {
 	}
 	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		f.Close()
-		return nil, fmt.Errorf("daemon: already running")
+		return nil, flockError(err)
 	}
 	return f, nil
+}
+
+func flockError(err error) error {
+	if errors.Is(err, syscall.EWOULDBLOCK) {
+		return fmt.Errorf("daemon: already running")
+	}
+	return fmt.Errorf("daemon: lock: %w", err)
 }
