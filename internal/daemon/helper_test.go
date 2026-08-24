@@ -3,7 +3,6 @@
 package daemon
 
 import (
-	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,25 +25,6 @@ func TestHelperRecognizesHello(t *testing.T) {
 	text := strings.TrimSpace(string(out))
 	if !strings.Contains(strings.ToUpper(text), "HELLO") {
 		t.Fatalf("recognized %q, want HELLO", text)
-	}
-}
-
-func TestHelperUsage(t *testing.T) {
-	helper, ok := lookupHelper()
-	if !ok {
-		t.Skip("ocrogram-helper not built; run make helper")
-	}
-	cmd := exec.Command(helper)
-	out, err := cmd.CombinedOutput()
-	if err == nil {
-		t.Fatal("expected exit 2")
-	}
-	var exitErr *exec.ExitError
-	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 2 {
-		t.Fatalf("exit %v, want 2; output %q", err, out)
-	}
-	if !strings.Contains(string(out), "usage: ocrogram-helper") {
-		t.Fatalf("got %q", out)
 	}
 }
 

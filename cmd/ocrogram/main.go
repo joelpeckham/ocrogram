@@ -8,56 +8,49 @@ import (
 
 	"github.com/joelpeckham/ocrogram/internal/daemon"
 	"github.com/joelpeckham/ocrogram/internal/service"
-	"github.com/joelpeckham/ocrogram/internal/tui"
-	"github.com/spf13/cobra"
 )
 
 // version is set via -ldflags at build time.
 var version = "dev"
 
 func main() {
-	root := &cobra.Command{
-		Use:           "ocrogram",
-		Short:         "Extract text from macOS screenshots into the clipboard",
-		Long:          "ocrogram watches for macOS screenshots, extracts text with Apple Vision, and copies it to the clipboard.",
-		Version:       version,
-		Args:          cobra.NoArgs,
-		SilenceUsage:  true,
-		SilenceErrors: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return tui.Run()
-		},
-	}
-
-	root.AddCommand(
-		&cobra.Command{
-			Use:   "daemon",
-			Short: "Run the background screenshot watcher (used by launchd)",
-			Args:  cobra.NoArgs,
-			RunE: func(cmd *cobra.Command, args []string) error {
-				return daemon.Run()
-			},
-		},
-		&cobra.Command{
-			Use:   "start",
-			Short: "Install and start the login item",
-			Args:  cobra.NoArgs,
-			RunE: func(cmd *cobra.Command, args []string) error {
-				return service.Start()
-			},
-		},
-		&cobra.Command{
-			Use:   "stop",
-			Short: "Stop and remove the login item",
-			Args:  cobra.NoArgs,
-			RunE: func(cmd *cobra.Command, args []string) error {
-				return service.Stop()
-			},
-		},
-	)
-
-	if err := root.Execute(); err != nil {
+	if err := run(os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+func run(args []string) error {
+	if len(args) == 0 {
+		usage()
+		os.Exit(2)
+	}
+	switch args[0] {
+	case "daemon":
+		return daemon.Run()
+	case "start":
+		return service.Start()
+	case "stop":
+		return service.Stop()
+	case "version", "--version", "-v":
+		fmt.Println("ocrogram", version)
+		return nil
+	case "-h", "--help", "help":
+		usage()
+		return nil
+	default:
+		usage()
+		os.Exit(2)
+		return nil
+	}
+}
+
+func usage() {
+	fmt.Fprint(os.Stderr, `ocrogram extracts text from macOS screenshots into the clipboard.
+
+Usage:
+  ocrogram start     install and start the login item
+  ocrogram stop      stop and remove the login item
+  ocrogram daemon    run the background watcher (used by launchd)
+`)
 }

@@ -1,6 +1,6 @@
 # ocrogram
 
-A set-and-forget Mac background tool. Install it, run the TUI once, leave it on as a login item. After that, a normal macOS screenshot puts the text on the clipboard. Cmd+V pastes it anywhere.
+A set-and-forget Mac background tool. Install it, run `ocrogram start`, leave it on as a login item. After that, a normal macOS screenshot puts the text on the clipboard. Cmd+V pastes it anywhere.
 
 The name is a portmanteau of OCR and program — and *gram*, something written down.
 
@@ -15,10 +15,10 @@ You should not open an app, crop a region into a dedicated OCR window, or rememb
 ```bash
 brew tap joelpeckham/ocrogram
 brew install ocrogram
-ocrogram
+ocrogram start
 ```
 
-The TUI confirms the screenshot folder and can enable the login item. `ocrogram start` and `ocrogram stop` do the same without the TUI.
+`ocrogram start` and `ocrogram stop` manage the LaunchAgent.
 
 The formula in this repo ([Formula/ocrogram.rb](Formula/ocrogram.rb)) is the draft. Tagged releases install from source via the [joelpeckham/homebrew-ocrogram](https://github.com/joelpeckham/homebrew-ocrogram) tap. Until a tag exists, `brew install --HEAD` from that tap builds `main`.
 
@@ -26,11 +26,11 @@ The formula in this repo ([Formula/ocrogram.rb](Formula/ocrogram.rb)) is the dra
 
 ocrogram watches the folder from `defaults read com.apple.screencapture location`, or `~/Desktop` if that key is unset. New screenshot images are sent to `ocrogram-helper`, which runs Apple Vision and writes the text to the clipboard.
 
-`ocrogram start` generates a LaunchAgent at `~/Library/LaunchAgents/com.joelpeckham.ocrogram.plist` that runs `ocrogram daemon` at login. Settings live in `~/.config/ocrogram/config.toml`. Logs go to `~/Library/Logs/ocrogram.log`.
+`ocrogram start` generates a LaunchAgent at `~/Library/LaunchAgents/com.joelpeckham.ocrogram.plist` that runs `ocrogram daemon` at login. Logs go to `~/Library/Logs/ocrogram.log`.
 
 Clipboard-only captures (`Cmd+Ctrl+Shift+3` / `Cmd+Ctrl+Shift+4`) never write a file, so ocrogram ignores them.
 
-Watching Desktop may need Full Disk Access. If the daemon cannot read that folder, point screenshots at a folder you own and set that path in the TUI:
+Watching Desktop may need Full Disk Access. If the daemon cannot read that folder, point screenshots at a folder you own:
 
 ```bash
 mkdir -p ~/Pictures/Screenshots
@@ -42,10 +42,9 @@ killall SystemUIServer
 
 | Command | Role |
 | --- | --- |
-| `ocrogram` | Setup TUI |
-| `ocrogram daemon` | Background watcher (what launchd runs) |
 | `ocrogram start` | Install and start the login item |
 | `ocrogram stop` | Stop and remove the login item |
+| `ocrogram daemon` | Background watcher (what launchd runs) |
 
 ## Develop
 
@@ -60,7 +59,7 @@ make test
 
 `make go` builds only the CLI. `make helper` builds only the Swift helper. `make clean` removes `bin/` and Swift build products.
 
-The helper contract is `ocrogram-helper <image-path>`: print text, copy it, exit 0 on success, 1 if the image had no text, 2 on usage or IO errors. Tests assert those exit codes when the helper is built.
+The helper contract is `ocrogram-helper <image-path>`: print text, copy it, exit 0 on success, 1 if the image had no text, 2 on usage or IO errors.
 
 Custom-named screenshots are still picked up once Spotlight sets `kMDItemIsScreenCapture` (ocrogram retries for a couple of seconds). Default localized names match immediately.
 

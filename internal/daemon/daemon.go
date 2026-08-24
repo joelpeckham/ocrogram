@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/joelpeckham/ocrogram/internal/config"
 	"github.com/joelpeckham/ocrogram/internal/screenshot"
 )
 
@@ -35,11 +34,10 @@ func Run() error {
 	}
 	defer lock.Close()
 
-	cfg, err := config.Load()
+	dir, err := screenshotDir()
 	if err != nil {
 		return err
 	}
-	dir := cfg.ScreenshotDir
 	if _, err := os.Stat(dir); err != nil {
 		return fmt.Errorf("daemon: screenshot dir %s: %w", dir, err)
 	}
@@ -136,15 +134,6 @@ type processor struct {
 }
 
 func newProcessor(cfg processorConfig) *processor {
-	if cfg.seen == nil {
-		cfg.seen = make(map[string]struct{})
-	}
-	if cfg.maxTries <= 0 {
-		cfg.maxTries = unknownRetryTries
-	}
-	if cfg.sleep == nil {
-		cfg.sleep = time.Sleep
-	}
 	return &processor{
 		seen:     cfg.seen,
 		busy:     make(map[string]struct{}),
@@ -225,6 +214,35 @@ func (p *processor) retryUnknown(path string) {
 	p.mark(path)
 }
 
+func screenshotDir() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("daemon: home: %w", err)
+	}
+	dir := filepath.Join(home, "Desktop")
+	out, err := exec.Command("defaults", "read", "com.apple.screencapture", "location").Output()
+	if err == nil {
+		if loc := strings.TrimSpace(string(out)); loc != "" {
+			dir = expandHome(loc, home)
+		}
+	}
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return "", fmt.Errorf("daemon: screenshot dir: %w", err)
+	}
+	return filepath.Clean(abs), nil
+}
+
+func expandHome(p, home string) string {
+	if p == "~" {
+		return home
+	}
+	if strings.HasPrefix(p, "~/") {
+		return filepath.Join(home, strings.TrimPrefix(p, "~/"))
+	}
+	return p
+}
+
 func helperPath() (string, error) {
 	if exe, err := os.Executable(); err == nil {
 		candidate := filepath.Join(filepath.Dir(exe), "ocrogram-helper")
@@ -278,14 +296,10 @@ func acquireInstanceLock() (*os.File, error) {
 	}
 	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		f.Close()
-		return nil, flockError(err)
+		if errors.Is(err, syscall.EWOULDBLOCK) {
+			return nil, fmt.Errorf("daemon: already running")
+		}
+		return nil, fmt.Errorf("daemon: lock: %w", err)
 	}
 	return f, nil
-}
-
-func flockError(err error) error {
-	if errors.Is(err, syscall.EWOULDBLOCK) {
-		return fmt.Errorf("daemon: already running")
-	}
-	return fmt.Errorf("daemon: lock: %w", err)
 }

@@ -59,21 +59,6 @@ const (
 	KindUnknown
 )
 
-func (k Kind) String() string {
-	switch k {
-	case KindIncomplete:
-		return "incomplete"
-	case KindScreenshot:
-		return "screenshot"
-	case KindNotScreenshot:
-		return "not-screenshot"
-	case KindUnknown:
-		return "unknown"
-	default:
-		return "invalid"
-	}
-}
-
 func isImage(path string) bool {
 	_, ok := imageExts[strings.ToLower(filepath.Ext(path))]
 	return ok
@@ -163,11 +148,8 @@ type Settler struct {
 	pending map[string]*time.Timer
 }
 
-// NewSettler returns a settler. A non-positive delay becomes 400ms.
+// NewSettler returns a settler that fires after delay of quiet.
 func NewSettler(delay time.Duration) *Settler {
-	if delay <= 0 {
-		delay = 400 * time.Millisecond
-	}
 	return &Settler{
 		Delay:   delay,
 		pending: make(map[string]*time.Timer),

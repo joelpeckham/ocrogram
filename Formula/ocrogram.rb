@@ -13,6 +13,7 @@ class Ocrogram < Formula
 
   depends_on :macos
   depends_on "go" => :build
+  depends_on xcode: :build
 
   def install
     system "make", "VERSION=#{version}"
@@ -22,8 +23,8 @@ class Ocrogram < Formula
 
   def caveats
     <<~EOS
-      Run `ocrogram` once to confirm the screenshot folder and enable the login item.
-      `ocrogram start` and `ocrogram stop` manage the LaunchAgent.
+      Run `ocrogram start` to enable the login item.
+      `ocrogram stop` removes it.
     EOS
   end
 

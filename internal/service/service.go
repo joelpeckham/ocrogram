@@ -65,11 +65,6 @@ func Stop() error {
 	return nil
 }
 
-// Running reports whether the LaunchAgent is loaded.
-func Running() bool {
-	return exec.Command("launchctl", "print", target()).Run() == nil
-}
-
 // Plist renders a LaunchAgent property list for exe, logging to logFile.
 func Plist(exe, logFile string) string {
 	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
