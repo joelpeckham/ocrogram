@@ -17,7 +17,7 @@ helper:
 	cp helper/.build/release/ocrogram-helper $(HELPER_BIN)
 
 test:
-	go test ./...
+	go test -race ./...
 
 clean:
 	rm -rf $(BIN_DIR) helper/.build

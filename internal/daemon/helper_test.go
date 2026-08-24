@@ -1,6 +1,9 @@
+//go:build darwin
+
 package daemon
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -35,6 +38,10 @@ func TestHelperUsage(t *testing.T) {
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Fatal("expected exit 2")
+	}
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 2 {
+		t.Fatalf("exit %v, want 2; output %q", err, out)
 	}
 	if !strings.Contains(string(out), "usage: ocrogram-helper") {
 		t.Fatalf("got %q", out)

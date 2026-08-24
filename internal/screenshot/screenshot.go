@@ -1,3 +1,5 @@
+//go:build darwin
+
 package screenshot
 
 import (
@@ -42,14 +44,41 @@ var namePrefixes = []string{
 	"zrzut ekranu",
 }
 
-// IsImage reports whether path has a screenshot-like image extension.
-func IsImage(path string) bool {
+// Kind is the classification of a path in the screenshot folder.
+type Kind int
+
+const (
+	// KindIncomplete is missing, empty, or a dotfile — do not mark seen.
+	KindIncomplete Kind = iota
+	// KindScreenshot is a finished screenshot — OCR it.
+	KindScreenshot
+	// KindNotScreenshot is finished but not a screenshot — ignore it.
+	KindNotScreenshot
+	// KindUnknown is an image whose Spotlight metadata is not ready yet.
+	KindUnknown
+)
+
+func (k Kind) String() string {
+	switch k {
+	case KindIncomplete:
+		return "incomplete"
+	case KindScreenshot:
+		return "screenshot"
+	case KindNotScreenshot:
+		return "not-screenshot"
+	case KindUnknown:
+		return "unknown"
+	default:
+		return "invalid"
+	}
+}
+
+func isImage(path string) bool {
 	_, ok := imageExts[strings.ToLower(filepath.Ext(path))]
 	return ok
 }
 
-// MatchesName reports whether the file name looks like a macOS screenshot.
-func MatchesName(path string) bool {
+func matchesName(path string) bool {
 	base := strings.ToLower(filepath.Base(path))
 	for _, prefix := range namePrefixes {
 		if strings.HasPrefix(base, strings.ToLower(prefix)) {
@@ -59,32 +88,55 @@ func MatchesName(path string) bool {
 	return false
 }
 
-// IsDotfile reports whether the base name starts with a dot.
-func IsDotfile(path string) bool {
+func isDotfile(path string) bool {
 	return strings.HasPrefix(filepath.Base(path), ".")
 }
 
-// IsEmpty reports whether path is missing or has size 0.
-func IsEmpty(path string) bool {
+func isEmpty(path string) bool {
 	info, err := os.Stat(path)
 	return err != nil || info.Size() == 0
 }
 
-// HasScreenCaptureMetadata reports kMDItemIsScreenCapture via mdls.
-func HasScreenCaptureMetadata(path string) bool {
+func lookupScreenCaptureMetadata(path string) Kind {
 	out, err := exec.Command("mdls", "-raw", "-name", "kMDItemIsScreenCapture", path).Output()
+	return parseScreenCaptureMetadata(string(out), err)
+}
+
+func parseScreenCaptureMetadata(out string, err error) Kind {
 	if err != nil {
-		return false
+		return KindUnknown
 	}
-	return strings.TrimSpace(string(out)) == "1"
+	switch strings.TrimSpace(out) {
+	case "1":
+		return KindScreenshot
+	case "0":
+		return KindNotScreenshot
+	default:
+		return KindUnknown
+	}
+}
+
+func classify(path string, meta func(string) Kind) Kind {
+	if isDotfile(path) || isEmpty(path) {
+		return KindIncomplete
+	}
+	if !isImage(path) {
+		return KindNotScreenshot
+	}
+	if matchesName(path) {
+		return KindScreenshot
+	}
+	return meta(path)
+}
+
+// Classify reports whether path is a screenshot, not one, still writing, or unknown.
+func Classify(path string) Kind {
+	return classify(path, lookupScreenCaptureMetadata)
 }
 
 // IsScreenshot reports whether path looks like a finished screenshot image.
 func IsScreenshot(path string) bool {
-	if IsDotfile(path) || !IsImage(path) || IsEmpty(path) {
-		return false
-	}
-	return HasScreenCaptureMetadata(path) || MatchesName(path)
+	return Classify(path) == KindScreenshot
 }
 
 // Snapshot lists non-directory entries in dir, keyed by full path.
@@ -129,12 +181,19 @@ func (s *Settler) Touch(path string, fn func(string)) {
 	if t, ok := s.pending[path]; ok {
 		t.Stop()
 	}
-	s.pending[path] = time.AfterFunc(s.Delay, func() {
+	var timer *time.Timer
+	timer = time.AfterFunc(s.Delay, func() {
 		s.mu.Lock()
+		current, ok := s.pending[path]
+		if !ok || current != timer {
+			s.mu.Unlock()
+			return
+		}
 		delete(s.pending, path)
 		s.mu.Unlock()
 		fn(path)
 	})
+	s.pending[path] = timer
 }
 
 // Stop cancels all pending timers.

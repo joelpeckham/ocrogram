@@ -1,3 +1,5 @@
+//go:build darwin
+
 package tui
 
 import (
@@ -28,9 +30,9 @@ type model struct {
 	err     error
 }
 
-type startedMsg struct{}
+type startedMsg struct{ dir string }
 type stoppedMsg struct{}
-type savedMsg struct{}
+type savedMsg struct{ dir string }
 type errMsg struct{ err error }
 
 func newModel() model {
@@ -81,11 +83,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case startedMsg:
 		m.running = true
 		m.note = "started"
+		if msg.dir != "" {
+			m.cfg.ScreenshotDir = msg.dir
+		}
 	case stoppedMsg:
 		m.running = false
 		m.note = "stopped"
 	case savedMsg:
 		m.note = "folder saved"
+		if msg.dir != "" {
+			m.cfg.ScreenshotDir = msg.dir
+		}
 	case errMsg:
 		m.err = msg.err
 		m.note = ""
@@ -171,15 +179,28 @@ func loginLabel(running bool) string {
 	return "not running"
 }
 
+func persist(cfg config.Config) (config.Config, error) {
+	dir, err := config.NormalizeDir(cfg.ScreenshotDir)
+	if err != nil {
+		return cfg, err
+	}
+	cfg.ScreenshotDir = dir
+	if err := config.Save(cfg); err != nil {
+		return cfg, err
+	}
+	return cfg, nil
+}
+
 func startCmd(cfg config.Config) tea.Cmd {
 	return func() tea.Msg {
-		if err := config.Save(cfg); err != nil {
+		cfg, err := persist(cfg)
+		if err != nil {
 			return errMsg{err}
 		}
 		if err := service.Start(); err != nil {
 			return errMsg{err}
 		}
-		return startedMsg{}
+		return startedMsg{dir: cfg.ScreenshotDir}
 	}
 }
 
@@ -194,16 +215,17 @@ func stopCmd() tea.Cmd {
 
 func saveCmd(cfg config.Config, running bool) tea.Cmd {
 	return func() tea.Msg {
-		if err := config.Save(cfg); err != nil {
+		cfg, err := persist(cfg)
+		if err != nil {
 			return errMsg{err}
 		}
 		if running {
 			if err := service.Start(); err != nil {
 				return errMsg{err}
 			}
-			return startedMsg{}
+			return startedMsg{dir: cfg.ScreenshotDir}
 		}
-		return savedMsg{}
+		return savedMsg{dir: cfg.ScreenshotDir}
 	}
 }
 

@@ -28,7 +28,9 @@ ocrogram watches the folder from `defaults read com.apple.screencapture location
 
 `ocrogram start` generates a LaunchAgent at `~/Library/LaunchAgents/com.joelpeckham.ocrogram.plist` that runs `ocrogram daemon` at login. Settings live in `~/.config/ocrogram/config.toml`. Logs go to `~/Library/Logs/ocrogram.log`.
 
-If the daemon cannot read Desktop, point screenshots at a folder you own and set that path in the TUI:
+Clipboard-only captures (`Cmd+Ctrl+Shift+3` / `Cmd+Ctrl+Shift+4`) never write a file, so ocrogram ignores them.
+
+Watching Desktop may need Full Disk Access. If the daemon cannot read that folder, point screenshots at a folder you own and set that path in the TUI:
 
 ```bash
 mkdir -p ~/Pictures/Screenshots
@@ -58,7 +60,9 @@ make test
 
 `make go` builds only the CLI. `make helper` builds only the Swift helper. `make clean` removes `bin/` and Swift build products.
 
-The helper contract is `ocrogram-helper <image-path>`: print text, copy it, exit 0 on success, 1 if the image had no text, 2 on usage or IO errors.
+The helper contract is `ocrogram-helper <image-path>`: print text, copy it, exit 0 on success, 1 if the image had no text, 2 on usage or IO errors. Tests assert those exit codes when the helper is built.
+
+Custom-named screenshots are still picked up once Spotlight sets `kMDItemIsScreenCapture` (ocrogram retries for a couple of seconds). Default localized names match immediately.
 
 ## Release
 

@@ -1,3 +1,5 @@
+//go:build darwin
+
 package config
 
 import (
@@ -43,6 +45,53 @@ func TestLoadFromEmptyDirUsesDiscovery(t *testing.T) {
 	}
 	if got.ScreenshotDir == "" {
 		t.Fatal("expected discovered screenshot dir")
+	}
+}
+
+func TestNormalizeDir(t *testing.T) {
+	dir := t.TempDir()
+	got, err := NormalizeDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := filepath.Abs(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != filepath.Clean(want) {
+		t.Fatalf("NormalizeDir = %q, want %q", got, want)
+	}
+
+	file := filepath.Join(dir, "not-a-dir")
+	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NormalizeDir(file); err == nil {
+		t.Fatal("expected error for file")
+	}
+	if _, err := NormalizeDir(""); err == nil {
+		t.Fatal("expected error for empty")
+	}
+	if _, err := NormalizeDir(filepath.Join(dir, "missing")); err == nil {
+		t.Fatal("expected error for missing")
+	}
+}
+
+func TestResolveDirExpandsHome(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := resolveDir("~/Desktop")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := filepath.Abs(filepath.Join(home, "Desktop"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != filepath.Clean(want) {
+		t.Fatalf("resolveDir = %q, want %q", got, want)
 	}
 }
 

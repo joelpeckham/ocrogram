@@ -1,3 +1,5 @@
+//go:build darwin
+
 package config
 
 import (
@@ -17,18 +19,22 @@ type Config struct {
 }
 
 // DefaultPath is ~/.config/ocrogram/config.toml.
-func DefaultPath() string {
+func DefaultPath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return ""
+		return "", fmt.Errorf("config: home: %w", err)
 	}
-	return filepath.Join(home, ".config", "ocrogram", "config.toml")
+	return filepath.Join(home, ".config", "ocrogram", "config.toml"), nil
 }
 
 // Load reads the default config path. A missing file is not an error;
 // discovered screenshot-folder defaults are returned instead.
 func Load() (Config, error) {
-	return LoadFrom(DefaultPath())
+	path, err := DefaultPath()
+	if err != nil {
+		return Config{}, err
+	}
+	return LoadFrom(path)
 }
 
 // LoadFrom reads config from path.
@@ -36,6 +42,10 @@ func LoadFrom(path string) (Config, error) {
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		dir, derr := DiscoverScreenshotDir()
+		if derr != nil {
+			return Config{}, derr
+		}
+		dir, derr = resolveDir(dir)
 		if derr != nil {
 			return Config{}, derr
 		}
@@ -57,17 +67,54 @@ func LoadFrom(path string) (Config, error) {
 		cfg.ScreenshotDir = dir
 	}
 
-	home, err := os.UserHomeDir()
+	dir, err := resolveDir(cfg.ScreenshotDir)
 	if err != nil {
-		return Config{}, fmt.Errorf("config: home: %w", err)
+		return Config{}, err
 	}
-	cfg.ScreenshotDir = expandHome(cfg.ScreenshotDir, home)
+	cfg.ScreenshotDir = dir
 	return cfg, nil
 }
 
 // Save writes the default config path.
 func Save(cfg Config) error {
-	return SaveTo(DefaultPath(), cfg)
+	path, err := DefaultPath()
+	if err != nil {
+		return err
+	}
+	return SaveTo(path, cfg)
+}
+
+// NormalizeDir expands ~, makes path absolute, and checks that it is a directory.
+func NormalizeDir(p string) (string, error) {
+	abs, err := resolveDir(p)
+	if err != nil {
+		return "", err
+	}
+	info, err := os.Stat(abs)
+	if err != nil {
+		return "", fmt.Errorf("config: screenshot dir: %w", err)
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("config: screenshot dir: not a directory: %s", abs)
+	}
+	return abs, nil
+}
+
+func resolveDir(p string) (string, error) {
+	p = strings.TrimSpace(p)
+	if p == "" {
+		return "", fmt.Errorf("config: screenshot dir is empty")
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("config: home: %w", err)
+	}
+	p = expandHome(p, home)
+	abs, err := filepath.Abs(p)
+	if err != nil {
+		return "", fmt.Errorf("config: abs: %w", err)
+	}
+	return filepath.Clean(abs), nil
 }
 
 // SaveTo writes config to path, creating parent directories as needed.

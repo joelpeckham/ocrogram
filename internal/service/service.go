@@ -1,3 +1,5 @@
+//go:build darwin
+
 package service
 
 import (
@@ -39,7 +41,9 @@ func Start() error {
 		return fmt.Errorf("service: write plist: %w", err)
 	}
 
-	_ = bootout()
+	if err := bootout(); err != nil {
+		return fmt.Errorf("service: bootout: %w", err)
+	}
 	if err := bootstrap(plist); err != nil {
 		return fmt.Errorf("service: bootstrap: %w", err)
 	}
@@ -52,7 +56,9 @@ func Stop() error {
 	if err != nil {
 		return fmt.Errorf("service: home: %w", err)
 	}
-	_ = bootout()
+	if err := bootout(); err != nil {
+		return fmt.Errorf("service: bootout: %w", err)
+	}
 	if err := os.Remove(plistPath(home)); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("service: remove plist: %w", err)
 	}
@@ -80,7 +86,10 @@ func Plist(exe, logFile string) string {
 	<key>RunAtLoad</key>
 	<true/>
 	<key>KeepAlive</key>
-	<true/>
+	<dict>
+		<key>SuccessfulExit</key>
+		<false/>
+	</dict>
 	<key>StandardOutPath</key>
 	<string>%s</string>
 	<key>StandardErrorPath</key>
@@ -117,9 +126,23 @@ func bootstrap(plist string) error {
 func bootout() error {
 	out, err := exec.Command("launchctl", "bootout", target()).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(out)))
+		msg := strings.TrimSpace(string(out))
+		if isNotLoaded(msg, err) {
+			return nil
+		}
+		return fmt.Errorf("%w: %s", err, msg)
 	}
 	return nil
+}
+
+func isNotLoaded(msg string, err error) bool {
+	s := strings.ToLower(msg)
+	if err != nil {
+		s += " " + strings.ToLower(err.Error())
+	}
+	return strings.Contains(s, "no such process") ||
+		strings.Contains(s, "could not find") ||
+		strings.Contains(s, "not found")
 }
 
 // stableExecutable prefers Homebrew's prefix shim over a Cellar path so

@@ -1,6 +1,9 @@
+//go:build darwin
+
 package service
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,11 +18,28 @@ func TestPlistContainsLabelAndPaths(t *testing.T) {
 		"daemon",
 		"/Users/ada/Library/Logs/ocrogram.log",
 		"<key>KeepAlive</key>",
+		"<key>SuccessfulExit</key>",
+		"<false/>",
 		"<key>RunAtLoad</key>",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("plist missing %q", want)
 		}
+	}
+	if strings.Contains(body, "<key>KeepAlive</key>\n	<true/>") {
+		t.Fatal("KeepAlive should not be a bare true")
+	}
+}
+
+func TestIsNotLoaded(t *testing.T) {
+	if !isNotLoaded("Boot-out failed: 3: No such process", fmt.Errorf("exit status 5")) {
+		t.Fatal("expected no such process to be ignored")
+	}
+	if !isNotLoaded("Could not find service", nil) {
+		t.Fatal("expected could not find to be ignored")
+	}
+	if isNotLoaded("permission denied", fmt.Errorf("exit status 1")) {
+		t.Fatal("permission error should not be ignored")
 	}
 }
 
