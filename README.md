@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="ocrogram.svg" alt="ocrogram" width="220">
+</p>
+
 # ocrogram
 
 Take a screenshot. Paste the text.
