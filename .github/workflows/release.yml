@@ -15,11 +15,24 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: make
-      - run: go test -race ./...
-      - name: Package binaries
-        run: tar -czf "ocrogram-darwin-$(uname -m).tar.gz" -C bin ocrogram ocrogram-helper
+      - run: make test
+      - name: Package arm64 binaries
+        run: |
+          make clean
+          make GOARCH=arm64
+          file bin/ocrogram bin/ocrogram-helper
+          lipo -info bin/ocrogram bin/ocrogram-helper
+          tar -czf ocrogram-darwin-arm64.tar.gz -C bin ocrogram ocrogram-helper
+      - name: Package amd64 binaries
+        run: |
+          make clean
+          make GOARCH=amd64
+          file bin/ocrogram bin/ocrogram-helper
+          lipo -info bin/ocrogram bin/ocrogram-helper
+          tar -czf ocrogram-darwin-amd64.tar.gz -C bin ocrogram ocrogram-helper
       - uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          files: ocrogram-darwin-*.tar.gz
+          files: |
+            ocrogram-darwin-arm64.tar.gz
+            ocrogram-darwin-amd64.tar.gz

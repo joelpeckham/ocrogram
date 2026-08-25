@@ -25,11 +25,9 @@ brew install joelpeckham/ocrogram/ocrogram
 ocrogram start
 ```
 
-That taps [joelpeckham/homebrew-ocrogram](https://github.com/joelpeckham/homebrew-ocrogram) and trusts this formula (Homebrew 6 requires that for third-party taps). `ocrogram start` installs the login item; `ocrogram stop` removes it.
+That taps [joelpeckham/homebrew-ocrogram](https://github.com/joelpeckham/homebrew-ocrogram) and trusts this formula (Homebrew 6 requires that for third-party taps). Homebrew installs a prebuilt binary for Apple silicon or Intel. `ocrogram start` installs the login item; `ocrogram stop` removes it. Full requirements and a step-by-step walkthrough: [ocrogram.com/#install](https://ocrogram.com/#install).
 
-Homebrew compiles from source, so you need Go and a Swift toolchain it accepts. If it says Xcode is outdated, update Xcode (or the Command Line Tools) to the version for your macOS, or remove an older `/Applications/Xcode.app` so Homebrew can use the CLT. Full requirements and a step-by-step walkthrough: [ocrogram.com/#install](https://ocrogram.com/#install).
-
-To build the latest `main` instead of the last release:
+To compile the latest `main` instead of the last release (needs Go and a Swift 6 toolchain):
 
 ```bash
 brew install --HEAD joelpeckham/ocrogram/ocrogram
@@ -51,7 +49,7 @@ defaults write com.apple.screencapture location ~/Pictures/Screenshots
 killall SystemUIServer
 ```
 
-More cases (build failures, renamed screenshots, the lock file): [ocrogram.com/#troubleshooting](https://ocrogram.com/#troubleshooting).
+More cases (renamed screenshots, the lock file, `--HEAD` builds): [ocrogram.com/#troubleshooting](https://ocrogram.com/#troubleshooting).
 
 ## Commands
 
@@ -73,7 +71,7 @@ make
 make test
 ```
 
-`make go` builds only the CLI. `make helper` builds only the Swift helper. `make clean` removes `bin/` and Swift build products.
+`make go` builds only the CLI. `make helper` builds only the Swift helper. `make clean` removes `bin/` and leftover SwiftPM products. Make skips work when sources have not changed. Cross-compile with `make GOARCH=amd64` or `make GOARCH=arm64`.
 
 The helper contract is `ocrogram-helper <image-path>`: print text, copy it, exit 0 on success, 1 if the image had no text, 2 on usage or IO errors.
 
@@ -81,6 +79,8 @@ Custom-named screenshots are still picked up once Spotlight sets `kMDItemIsScree
 
 ## Release
 
-1. Tag `vX.Y.Z` and push. GitHub Actions builds, tests, and opens a Release.
-2. `sha256` the source tarball at `https://github.com/joelpeckham/ocrogram/archive/refs/tags/vX.Y.Z.tar.gz`.
-3. Set `url` and `sha256` in the tap formula.
+1. Tag `vX.Y.Z` and push. GitHub Actions builds, tests, and opens a Release with `ocrogram-darwin-arm64.tar.gz` and `ocrogram-darwin-amd64.tar.gz`.
+2. `sha256` both binary tarballs:
+   - `https://github.com/joelpeckham/ocrogram/releases/download/vX.Y.Z/ocrogram-darwin-arm64.tar.gz`
+   - `https://github.com/joelpeckham/ocrogram/releases/download/vX.Y.Z/ocrogram-darwin-amd64.tar.gz`
+3. Set the two `url` / `sha256` pairs in the tap formula.
